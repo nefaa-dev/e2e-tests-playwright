@@ -1,0 +1,2 @@
+Shipment_Name,Product_Name,Shape,Height,Length,Width,Diameter,Quantity,Weight,Crushing_limit,Stacking_on_top,Rotation,Unloading_priority
+shipment1,should_be_LD_P,0,1590,3030,2200,,1,0,,1,62,

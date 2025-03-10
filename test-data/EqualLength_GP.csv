@@ -1,0 +1,2 @@
+Shipment_Name,Is_Unloading_Priority_Enabled,Product_Name,Shape,Length,Width,Diameter,Height,Quantity,Weight,Crushing_limit,Stacking_on_top,Stacking_ground,Rotation,Unloading_priority
+GP,False,B,0,1200,12,,12,2,0,,1,63,

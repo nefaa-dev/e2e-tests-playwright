@@ -1,0 +1,2 @@
+Shipment_Name,Product_Name,Shape,Height,Length,Width,Diameter,Quantity,Weight,Crushing_limit,Stacking_on_top,Rotation,Unloading_priority
+products,box,0,200,200,200,,5,1,,1,7,2

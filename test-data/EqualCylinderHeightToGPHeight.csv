@@ -1,0 +1,2 @@
+Shipment_Name,Is_Unloading_Priority_Enabled,Product_Name,Shape,Length,Width,Diameter,Height,Quantity,Weight,Crushing_limit,Stacking_on_top,Rotation,Unloading_priority
+QA,False,CY,0,23,21,,2050,21,0,,1,63,

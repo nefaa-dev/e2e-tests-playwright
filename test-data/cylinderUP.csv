@@ -1,0 +1,2 @@
+shipment_name,product_name,shape,height,length,width,diameter,quantity,weight,crushing_limit,stacking_on_top,rotation,unloading_priority
+cylinderUP,c1,1,100,,,100,1,0,,1,32,1

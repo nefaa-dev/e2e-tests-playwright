@@ -1,0 +1,8 @@
+node_modules/
+/test-results/
+/Reports/
+/Screenshots/
+/playwright/.cache/
+/Downloads/
+.env
+/artifacts/

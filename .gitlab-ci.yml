@@ -1,0 +1,230 @@
+ui-smoke-preprod:
+  stage: e2e-test
+  tags:
+    - kos-deep-pack-qa-runner
+  allow_failure: false
+  image: mcr.microsoft.com/playwright:v1.34.3-jammy
+  variables:
+    CI: true
+    TESTMO_TOKEN: $TESTMO_TOKEN
+    DEEPPACK_USER_NAME: $DEEPPACK_USER_NAME
+    DEEPPACK_PASSWORD: $DEEPPACK_PASSWORD
+    IS_HEADLESS: true
+  needs: [ deploy-preprod, api-smoke]
+  only:
+    - master
+
+  before_script:
+    - apt-get clean
+    - apt-get update
+    - export RELEASE_NAME=$(eval "echo ${CI_COMMIT_REF_SLUG:0:15} | sed 's/-*$//'")
+    - export WEB_URL=https://test-organization.beta.next.deeppack.ai
+    - echo $WEB_URL
+
+
+  script:
+
+    - cd $CI_PROJECT_DIR/e2e-tests/ui-tests
+    - npm ci
+    - npx playwright install
+    - npm run beforeAll
+    - npm run smoke-test || TEST_FAILED=true
+    - node ./src/helpers/htmlReportGenerator.js
+    - npm install --cache .npm --prefer-offline --no-save @testmo/testmo-cli
+    - npx testmo automation:resources:add-field --name git --type string --value $CI_COMMIT_SHORT_SHA --resources resources.json
+    - npx testmo automation:resources:add-link --name build --url $CI_PIPELINE_URL --resources resources.json
+    - npx testmo automation:run:submit --instance "https://instadeepltd.testmo.net/" --project-id 2 --name "Pre-prod:$RELEASE_NAME" --source "frontend" --resources resources.json --results $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts/test-results/cucumber-report.xml
+    - if [ "$TEST_FAILED" = "true" ]; then exit 1; fi
+
+
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts/test-results/cucumber-report.xml
+    paths:
+        - $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts
+        
+
+
+
+ui-smoke:
+  stage: e2e-test
+  tags:
+    - kos-deep-pack-qa-runner
+  allow_failure: false
+  image: mcr.microsoft.com/playwright:v1.34.3-jammy
+  variables:
+    CI: true
+    TESTMO_TOKEN: $TESTMO_TOKEN
+    IS_HEADLESS: true
+  needs: [ ray-serve-boot-up, api-tests ]
+  only:
+    - /^nofullcheck.*/
+    - /^.*nofullcheck/
+
+  before_script:
+    - apt-get clean
+    - apt-get update
+    - export RELEASE_NAME=$(eval "echo ${CI_COMMIT_REF_SLUG:0:15} | sed 's/-*$//'")
+    - export WEB_URL=https://test-organization.dev.deeppack.ai/$RELEASE_NAME
+    - echo $WEB_URL
+  script:
+    - cd $CI_PROJECT_DIR/e2e-tests/ui-tests
+    - npm ci
+    - npx playwright install
+    - npm run beforeAll
+    - npm run smoke-test || TEST_FAILED=true
+    - node ./src/helpers/htmlReportGenerator.js
+    - npm install --cache .npm --prefer-offline --no-save @testmo/testmo-cli
+    - npx testmo automation:resources:add-field --name git --type string --value $CI_COMMIT_SHORT_SHA --resources resources.json
+    - npx testmo automation:resources:add-link --name build --url $CI_PIPELINE_URL --resources resources.json
+    - npx testmo automation:run:submit --instance "https://instadeepltd.testmo.net/" --project-id 2 --name "Pre-prod:$RELEASE_NAME" --source "frontend" --resources resources.json --results $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts/test-results/cucumber-report.xml
+    - if [ "$TEST_FAILED" = "true" ]; then exit 1; fi
+
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts/test-results/cucumber-report.xml
+    paths:
+        - $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts
+
+
+ui-tests:
+  stage: e2e-test
+  tags:
+    - kos-deep-pack-qa-runner
+  allow_failure: false
+  image: mcr.microsoft.com/playwright:v1.34.3-jammy
+  variables:
+    CI: true
+    TESTMO_TOKEN: $TESTMO_TOKEN
+    DEEPPACK_USER_NAME: $DEEPPACK_USER_NAME
+    DEEPPACK_PASSWORD: $DEEPPACK_PASSWORD
+    IS_HEADLESS: true
+  except:
+    refs:
+      - master
+      - develop
+      - /^hotfix.*/
+      - /^nofullcheck.*/
+      - /^.*nofullcheck/
+      - schedules
+
+  needs: [ ray-serve-boot-up, api-tests ]
+
+  before_script:
+    - apt-get clean
+    - apt-get update
+    - export RELEASE_NAME=$(eval "echo ${CI_COMMIT_REF_SLUG:0:15} | sed 's/-*$//'")
+
+
+  script:
+    - cd $CI_PROJECT_DIR/e2e-tests/ui-tests
+    - npm ci
+    - npx playwright install
+    - orgs=("myriad360" "test-organization")
+    - |
+      TEST_FAILED=false
+      for org in "${orgs[@]}"; do
+        export WEB_URL=https://$org.dev.deeppack.ai/$RELEASE_NAME
+        echo $WEB_URL
+        npm run beforeAll
+        CONFIG_FILE="cucumber.json"
+        if [ "$org" = "myriad360" ] || [ "$org" = "ups" ]; then
+          CONFIG_FILE="cucumber-parallel.json"
+        fi
+        
+        npm run $org-test -- --config $CONFIG_FILE || TEST_FAILED=true
+        node ./src/helpers/htmlReportGenerator.js
+        npm install --cache .npm --prefer-offline --no-save @testmo/testmo-cli
+        npx testmo automation:resources:add-field --name git --type string --value $CI_COMMIT_SHORT_SHA --resources resources.json
+        npx testmo automation:resources:add-link --name build --url $CI_PIPELINE_URL --resources resources.json
+        npx testmo automation:run:submit --instance "https://instadeepltd.testmo.net/" --project-id 2 --name "Feature branch: $RELEASE_NAME, Org:$org" --source "frontend" --resources resources.json --results $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts/test-results/cucumber-report.xml
+      done
+      if [ "$TEST_FAILED" = "true" ]; then exit 1; fi
+
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts/test-results/cucumber-report.xml
+    paths:
+        - $CI_PROJECT_DIR/e2e-tests/ui-tests/artifacts
+        
+
+
+e2e-dev-nightly:
+  stage: e2e-test
+  tags:
+    - kos-deep-pack-qa-runner
+  image: mcr.microsoft.com/playwright:v1.34.3-jammy
+  variables:
+    CI: true
+    TESTMO_TOKEN: $TESTMO_TOKEN
+    IS_HEADLESS: true
+
+  before_script:
+    - apt-get clean
+    - apt-get update
+
+  script:
+
+    - cd $CI_PROJECT_DIR/e2e-tests-next
+    - npm ci
+    - npx playwright install
+    - orgs=("myriad360" "ups" "test-organization")
+    - |
+      TEST_FAILED=false
+      for org in "${orgs[@]}"; do
+       export WEB_URL=https://$org.dev.deeppack.ai
+       echo $WEB_URL
+       npm run $org-test || TEST_FAILED=true
+       node ./src/helpers/htmlReportGenerator.js
+       npm install --cache .npm --prefer-offline --no-save @testmo/testmo-cli
+       npx testmo automation:resources:add-field --name git --type string --value $CI_COMMIT_SHORT_SHA --resources resources.json
+       npx testmo automation:resources:add-link --name build --url $CI_PIPELINE_URL --resources resources.json
+       npx testmo automation:run:submit --instance "https://instadeepltd.testmo.net/" --project-id 2 --name "Develop-Nightly, Client:$org" --source "frontend" --resources resources.json --results $CI_PROJECT_DIR/e2e-tests-next/test-results/cucumber-report.xml
+      done
+      if [ "$TEST_FAILED" = "true" ]; then exit 1; fi
+
+  rules:
+    - if: $SCHEDULE_TIME == "nightly"
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - $CI_PROJECT_DIR/e2e-tests-next/test-results/cucumber-report.xml
+    paths:
+        - $CI_PROJECT_DIR/e2e-tests-next/Reports/*.html
+        - $CI_PROJECT_DIR/e2e-tests-next/Screenshots/*.png
+        - $CI_PROJECT_DIR/e2e-tests-next/test-results/cucumber-report.xml

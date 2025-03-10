@@ -1,0 +1,5 @@
+Shipment_Name,Product_Name,Shape,Length,Width,Height,Diameter,Quantity,Weight,Stacking_on_top,Rotation
+shipment1,p114,0,500,600,100,,20,1,1,63
+shipment1,p12,0,400,400,500,,30,1,1,32
+shipment1,p1,0,1000,800,600,,30,1,1,63
+shipment1,p13,0,900,800,800,,20,1,1,32
